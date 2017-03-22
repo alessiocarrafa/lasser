@@ -1,0 +1,19 @@
+{
+  "name": "lasser",
+  "version": "0.0.1",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "live": "nodemon ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alessiocarrafa/lasser.git"
+  },
+  "author": "Alessio Carrafa",
+  "license": "ISC",
+  "homepage": "https://github.com/alessiocarrafa/lasser",
+  "devDependencies": {
+    "nodemon": "^1.11.0"
+  }
+}
