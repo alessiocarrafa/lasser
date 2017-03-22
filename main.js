@@ -1,18 +1,30 @@
 var fs = require('fs');
 
-fs.open( 'hobu.las', 'r', function( status, fd )
+var filename = 'hobu.las';
+
+function createMask( a, b )
+{
+	var r = 0;
+	for( var i = a; i <= b; i++ ) r |= 1 << i;
+	return r;
+}
+
+fs.open( filename, 'r', function( status, fd )
 {
 	if( status )
 	{
 		console.log( status.message );
 		return;
 	}
-	var buffer = new Buffer(1024);
-	fs.read(fd, buffer, 0, 1024, 0, function(err, num) {
+	var fileLength = fs.statSync( filename ).size;
+	var buffer = new Buffer( fileLength );
+	fs.read( fd, buffer, 0, fileLength, 0, function( err, num )
+	{
 
 		var header = 
 		{
 			signature				: buffer.toString('utf8', 0, 4),
+			fileSourceID			: buffer.readUInt16LE(4),
 			globalEncoding			: buffer.readUInt16LE(6),
 			guidData1				: buffer.readUInt32LE(8),
 			guidData2				: buffer.readUInt16LE(12),
@@ -21,37 +33,37 @@ fs.open( 'hobu.las', 'r', function( status, fd )
 			versionMajor			: buffer.readUInt8(24),
 			versionMinor			: buffer.readUInt8(25),
 			system					: buffer.toString('utf8', 26, 58),
-			generatingSoftware		: buffer.toString('ascii', 58, 90),
+			generatingSoftware		: buffer.toString('utf8', 58, 90),
 			fileCrationDayOfYear	: buffer.readUInt16LE(90),
 			fileCrationYear			: buffer.readUInt16LE(92),
 			headerSize				: buffer.readUInt16LE(94),
 			offsetToPointData		: buffer.readUInt32LE(96),
 			numberVariableLenRecords: buffer.readUInt32LE(100),
 			pointerDataFormatID		: buffer.readUInt8(104),
-			pointerDataRecordLen	: buffer.readUInt8(105),
-			numOfPointRecords		: buffer.readUInt32LE(106),
-			numPointsByReturn		: ~~buffer.toString('ascii', 110, 130),
-			xScaleFactor			: buffer.readDoubleLE(130),
-			yScaleFactor			: buffer.readDoubleLE(138),
-			zScaleFactor			: buffer.readDoubleLE(146),
-			xOffset					: buffer.readDoubleLE(154),
-			yOffset					: buffer.readDoubleLE(162),
-			zOffset					: buffer.readDoubleLE(170),
-			maxX					: buffer.readDoubleLE(178),
-			minX					: buffer.readDoubleLE(186),
-			maxY					: buffer.readDoubleLE(194),
-			minY					: buffer.readDoubleLE(202),
-			maxZ					: buffer.readDoubleLE(210),
-			minZ					: buffer.readDoubleLE(218),
+			pointerDataRecordLen	: buffer.readUInt16LE(105),
+			numOfPointRecords		: buffer.readUInt32LE(107),
+			numPointsByReturn		: ~~buffer.toString('utf8', 111, 131),
+			xScaleFactor			: buffer.readDoubleLE(131),
+			yScaleFactor			: buffer.readDoubleLE(139),
+			zScaleFactor			: buffer.readDoubleLE(147),
+			xOffset					: buffer.readDoubleLE(155),
+			yOffset					: buffer.readDoubleLE(163),
+			zOffset					: buffer.readDoubleLE(171),
+			maxX					: buffer.readDoubleLE(179),
+			minX					: buffer.readDoubleLE(187),
+			maxY					: buffer.readDoubleLE(195),
+			minY					: buffer.readDoubleLE(203),
+			maxZ					: buffer.readDoubleLE(211),
+			minZ					: buffer.readDoubleLE(219),
 		};
 
 		var variableLengthRecordSize = 54;
-		var start = header.headerSize;
+		var varStart = header.headerSize;
 		var variableLengthRecordArray = [];
 
 		for( var x = 0; x <= header.numberVariableLenRecords; x++ )
 		{
-			var currStart = start + ( x * variableLengthRecordSize );
+			var currStart = varStart + ( x * variableLengthRecordSize );
 
 			var userIDMargin				= ( currStart + 2 );
 			var recordIDMargin				= userIDMargin + 16;
@@ -67,9 +79,55 @@ fs.open( 'hobu.las', 'r', function( status, fd )
 			});
 		}
 
+		var pointSize = header.pointerDataRecordLen;
+		var pointStart = header.offsetToPointData;
+		var pointArray = [];
+
+		for( var x = 0; x < header.numOfPointRecords; x++ )
+		{
+			var currStart = pointStart + ( x * pointSize );
+
+			var xMargin = currStart;
+			var yMargin = currStart + 4;
+			var zMargin = yMargin + 4;
+			var intenityMargin = zMargin + 4;
+			var multiDataMargin = intenityMargin + 2;
+			var classificationMargin = multiDataMargin + 1;
+			var scanAgeRankMargin = classificationMargin + 1;
+			var userDataMargin = scanAgeRankMargin + 1;
+			var pointSourceIDMargin = userDataMargin + 1;
+			var rMargin = pointSourceIDMargin + 2;
+			var gMargin = rMargin + 2;
+			var bMargin = gMargin + 2;
+
+			var multidata = buffer.readUInt16LE( multiDataMargin );
+
+			pointArray.push({
+				x					: buffer.readInt32LE( xMargin ),
+				y					: buffer.readInt32LE( yMargin ),
+				z					: buffer.readInt32LE( zMargin ),
+				intensity			: buffer.readUInt16LE( intenityMargin ),
+				returnNumber		: ( createMask( 0, 2 ) & multidata ),
+				numOfRetutns		: ( createMask( 3, 5 ) & multidata ),
+				scanDirectionFlag	: ( createMask( 6, 7 ) & multidata ),
+				edgeOfFlightLine	: ( createMask( 7, 8 ) & multidata ),
+				classification		: buffer.readUInt8(classificationMargin),
+				scanAgeRank			: buffer.readUInt8(scanAgeRankMargin),
+				userData			: buffer.readUInt8(userDataMargin),
+				pointSourceID		: buffer.readUInt16LE(pointSourceIDMargin),
+				red					: buffer.readUInt16LE(rMargin),
+				green				: buffer.readUInt16LE(gMargin),
+				blue				: buffer.readUInt16LE(bMargin),
+			});
+
+		}
+
 		console.log(
+			variableLengthRecordArray.length,
+			pointArray.length,
 			JSON.stringify( header, null, 4 ),
-			JSON.stringify( variableLengthRecordArray, null, 4 )
+			JSON.stringify( variableLengthRecordArray, null, 4 ),
+			JSON.stringify( pointArray, null, 4 )
 		);
 	});
 });
