@@ -1,7 +1,7 @@
 {
   "name": "lasser",
-  "version": "0.0.1",
-  "description": "",
+  "version": "1.0.0",
+  "description": "NodeJS LAS file parse",
   "main": "main.js",
   "scripts": {
     "live": "nodemon ."
@@ -10,8 +10,14 @@
     "type": "git",
     "url": "git+https://github.com/alessiocarrafa/lasser.git"
   },
+  "keywords":[
+    "las",
+    "file",
+    "parse",
+    "node"
+  ],
   "author": "Alessio Carrafa",
-  "license": "ISC",
+  "license": "MIT",
   "homepage": "https://github.com/alessiocarrafa/lasser",
   "devDependencies": {
     "nodemon": "^1.11.0"
