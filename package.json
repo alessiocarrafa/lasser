@@ -2,9 +2,9 @@
   "name": "lasser",
   "version": "1.0.0",
   "description": "NodeJS LAS file parse",
-  "main": "main.js",
+  "main": "lasser.js",
   "scripts": {
-    "live": "nodemon ."
+    "live": "nodemon main.js"
   },
   "repository": {
     "type": "git",
